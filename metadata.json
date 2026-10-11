@@ -1,5 +1,7 @@
 {
     "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-MainScript": "ui/main.qml",
     "KPlugin": {
         "Authors": [
             {
@@ -62,10 +64,10 @@
         "Description[zh_TW]": "開啟應用程式用的啟動器",
         "EnabledByDefault": true,
         "Icon": "start-here-kde",
-        "Id": "EQmenu-8",
+        "Id": "org.kde.eqmenu",
         "License": "GPL-2.0+",
         "Name": "EQmenu-8",
-         "Version": "1.0",
+         "Version": "1.0.1",
         "Website": ""
     },
     "X-Plasma-API-Minimum-Version": "6.0",
