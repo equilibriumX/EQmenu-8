@@ -67,7 +67,7 @@
         "Id": "org.kde.eqmenu",
         "License": "GPL-2.0+",
         "Name": "EQmenu-8",
-         "Version": "1.0.1",
+         "Version": "1.2.1",
         "Website": ""
     },
     "X-Plasma-API-Minimum-Version": "6.0",
