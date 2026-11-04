@@ -23,25 +23,113 @@ import "../View"
 EmptyPage {
     id: root
 
-    readonly property int defaultIndex: kickoff.startWith
+    readonly property int defaultIndex: Plasmoid.configuration.startWith !== undefined ? Plasmoid.configuration.startWith : 0
     property real preferredSidebarWidth: Math.max(footer.tabBar.implicitWidth, applicationsPage.implicitWidth) + kickoff.backgroundMetrics.spacing * 2
 
-    // Delimo prozor na 2 glavna dela
+    // Raspored u RowLayout-u: 1. Desna strana (sada levo), 2. Aplikacije (sredina), 3. Levi meni / Sidebar (sada desno)
     contentItem: RowLayout {
         id: splitView
         anchors.fill: parent
         spacing: Kirigami.Units.smallSpacing
 
-        // --- LEVA STRANA: Aplikativni meni sa odnosom 30% (sidebar) - 70% (sadržaj) ---
+        // --- 1. PRVI DIO (LEVO): Bivša desna strana ---
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.maximumWidth: 380
+            Layout.bottomMargin: 60
+
+            BasePage {
+                id: rightBasePage
+                anchors.fill: parent
+
+                sidebarComponent: KickoffListView {
+                    id: sidebar
+                    isSidebar: true
+                    focus: true
+                    model: placesCategoryModel
+                    delegate: KickoffListDelegate {
+                        url: ""
+                        description: ""
+                        width: sidebar.availableWidth
+                        isCategoryListItem: true
+                        isMultilineText: false
+                        background: PExtras.Highlight {
+                            anchors.fill: parent
+                            active: false
+                            hovered: parent.mouseArea.containsMouse
+                            visible: !Plasmoid.configuration.isUpdateOnHover
+                                && !parent.isSeparator && !parent.ListView.isCurrentItem
+                                && hovered
+                        }
+                    }
+                }
+contentAreaComponent: KickoffListView {
+                    id: contentArea
+                    mainContentView: true
+                    focus: true
+                    objectName: "frequentlyUsedView"
+
+                    model: {
+                        let useCustom = Plasmoid.configuration.useCustomFilter !== undefined ? Plasmoid.configuration.useCustomFilter : false;
+
+                        if (!useCustom) {
+                            return kickoff.recentUsageModel !== undefined ? kickoff.recentUsageModel : root.allUsageModel;
+                        }
+
+                        let subFilter = Plasmoid.configuration.historySubFilter !== undefined ? Plasmoid.configuration.historySubFilter : 0;
+
+                        if (subFilter === 2) {
+                            return kickoff.computerModel;
+                        }
+
+                        // Sigurno instanciranje modela sa obezbeđenim favoritesModel-om
+                        let usageModel = Qt.createQmlObject('import org.kde.plasma.private.kicker as Kicker; Kicker.RecentUsageModel { favoritesModel: rootModel.favoritesModel }', contentArea);
+
+                        if (usageModel) {
+                            if (subFilter === 0) {
+                                usageModel.shownItems = Kicker.RecentUsageModel.OnlyApps;
+                            } else if (subFilter === 1) {
+                                usageModel.shownItems = Kicker.RecentUsageModel.OnlyDocs;
+                            }
+                            return usageModel;
+                        }
+
+                        return kickoff.recentUsageModel;
+                    }
+                }
+
+                Binding {
+                    target: kickoff
+                    property: "sidebar"
+                    value: rightBasePage.sidebarItem
+                    when: rightBasePage.T.StackView.status === T.StackView.Active && rightBasePage.visible
+                    restoreMode: Binding.RestoreBinding
+                }
+                Binding {
+                    target: kickoff
+                    property: "contentArea"
+                    value: rightBasePage.contentAreaItem
+                    when: rightBasePage.T.StackView.status === T.StackView.Active && rightBasePage.visible
+                    restoreMode: Binding.RestoreBinding
+                }
+            }
+        }
+
+
+
+        // --- 2. DRUGI DIO (SREDINA): Aplikacije ---
         Item {
             id: leftContainer
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.bottomMargin: 60
 
             HorizontalStackView {
                 id: stackView
                 anchors.fill: parent
                 focus: true
+                movementTransitionsEnabled: true
                 reverseTransitions: footer.tabBar.currentIndex === 1
                 initialItem: applicationsPage
 
@@ -66,78 +154,6 @@ EmptyPage {
                 }
             }
         }
-
-        // Vizuelni separator između leve i desne sekcije
-        Rectangle {
-            Layout.preferredWidth: 1
-            Layout.fillHeight: true
-            color: Kirigami.Theme.separatorColor
-        }
-
-        // --- DESNA STRANA: BasePage sa odnosom 30% (sidebar) - 70% (sadržaj) ---
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.maximumWidth: 380
-
-            BasePage {
-                id: rightBasePage
-                anchors.fill: parent
-
-
-                sidebarComponent: KickoffListView {
-                    id: sidebar
-                    isSidebar: true
-                    focus: true
-                    model: placesCategoryModel
-                    delegate: KickoffListDelegate {
-                        url: ""
-                        description: ""
-                        width: sidebar.availableWidth
-                        isCategoryListItem: true
-                        isMultilineText: false
-                        background: PExtras.Highlight {
-                            anchors.fill: parent
-                            active: false
-                            hovered: parent.mouseArea.containsMouse
-                            visible: !Plasmoid.configuration.isUpdateOnHover
-                                && !parent.isSeparator && !parent.ListView.isCurrentItem
-                                && hovered
-                        }
-                    }
-                }
-
-                contentAreaComponent: KickoffListView {
-                    id: contentArea
-                    mainContentView: true
-                    focus: true
-                    objectName: "frequentlyUsedView"
-                    model: switch (rightBasePage.sidebarItem.currentIndex) {
-                        case 0: return kickoff.recentUsageModel
-                    }
-                    onActiveFocusChanged: if (activeFocus && count < 1) {
-                        rightBasePage.sidebarItem.forceActiveFocus()
-                    }
-                }
-
-
-
-                Binding {
-                    target: kickoff
-                    property: "sidebar"
-                    value: rightBasePage.sidebarItem
-                    when: rightBasePage.T.StackView.status === T.StackView.Active && rightBasePage.visible
-                    restoreMode: Binding.RestoreBinding
-                }
-                Binding {
-                    target: kickoff
-                    property: "contentArea"
-                    value: rightBasePage.contentAreaItem
-                    when: rightBasePage.T.StackView.status === T.StackView.Active && rightBasePage.visible
-                    restoreMode: Binding.RestoreBinding
-                }
-            }
-        }
     }
 
     footer: PageFooter {
@@ -145,7 +161,6 @@ EmptyPage {
         isAtPlaces: root.defaultIndex === Global.placesIndex
         preferredTabBarWidth: root.preferredSidebarWidth
 
-        // Pozadina iza futera u skladu sa trenutnom temom
         Rectangle {
             anchors.fill: parent
             color: Kirigami.Theme.backgroundColor
